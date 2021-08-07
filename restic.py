@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 
 import json
+import sys
 
 
-def validate(d, complete=True, **types):
-    assert type(d) is dict, "expected dict"
-    for k, v in d.items():
+def validate(obj, inclusive=True, **types):
+    assert type(obj) is dict, "expected dict"
+    for k, v in obj.items():
         if k in types.keys():
             assert type(v) is types[k], f"'{k}' must be a {types[k].__name__}"
-        elif complete and not k.startswith("//"):
-            assert False, "'{}' is an unsupported key".format(k)
+        elif inclusive and not k.startswith("//"):
+            assert False, "'{}' is an invalid key".format(k)
 
 
 class Preset:
@@ -18,11 +19,11 @@ class Preset:
         self.flags = flags or {}
         self.args = args or []
 
-    def __add__(self, o):
+    def __add__(self, other):
         return Preset(
-            env={**self.env, **o.env},
-            flags={**self.flags, **o.flags},
-            args=self.args + o.args,
+            env={**self.env, **other.env},
+            flags={**self.flags, **other.flags},
+            args=self.args + other.args,
         )
 
     def full_args(self):
@@ -44,10 +45,10 @@ class Preset:
         return [name, str(value)]
 
     @classmethod
-    def from_dict(cls, d):
-        validate(d, env=dict, flags=dict, args=list)
+    def from_dict(cls, obj):
+        validate(obj, env=dict, flags=dict, args=list)
 
-        return cls(env=d.get("env"), flags=d.get("flags"), args=d.get("args"))
+        return cls(env=obj.get("env"), flags=obj.get("flags"), args=obj.get("args"))
 
 
 class Config:
@@ -58,30 +59,30 @@ class Config:
         self.prune = prune
 
     @classmethod
-    def from_dict(cls, d):
-        validate(d, presets=dict, backups=list, forgets=list, prune=dict)
+    def from_dict(cls, obj):
+        validate(obj, presets=dict, backups=list, forgets=list, prune=dict)
 
-        presets = {k: Preset.from_dict(v) for k, v in d.get("presets", {}).items()}
+        presets = {k: Preset.from_dict(v) for k, v in obj.get("presets", {}).items()}
 
         return cls(
             presets=presets,
-            backups=[cls.build_preset(presets, v) for v in d.get("backups", [])],
-            forgets=[cls.build_preset(presets, v) for v in d.get("forgets", [])],
-            prune=cls.build_preset(presets, d["prune"]) if "prune" in d else None,
+            backups=[cls.build_preset(presets, v) for v in obj.get("backups", [])],
+            forgets=[cls.build_preset(presets, v) for v in obj.get("forgets", [])],
+            prune=cls.build_preset(presets, obj["prune"]) if "prune" in obj else None,
         )
 
-    @classmethod
-    def build_preset(cls, presets, d):
+    @staticmethod
+    def build_preset(presets, obj):
         preset = Preset()
 
-        if "preset" in d:
-            validate(d, complete=False, preset=str)
-            for name in d.pop("preset").split(","):
+        if "preset" in obj:
+            validate(obj, inclusive=False, preset=str)
+            for name in obj.pop("preset").split(","):
                 name = name.strip()
                 assert name in presets, f"unknown preset: {name}"
                 preset += presets[name]
 
-        return preset + Preset.from_dict(d)
+        return preset + Preset.from_dict(obj)
 
 
 class Backups:
@@ -99,8 +100,7 @@ class Backups:
             yield prune.env, ["restic", "prune", *prune.full_args()]
 
 
-raw = json.loads(
-    """
+config_json = """
 {
     "presets": {
         "cloud": {
@@ -110,7 +110,8 @@ raw = json.loads(
             }
         }
     },
-    "//this is a comment": "",
+    
+    "// this is a comment": "",
     "backups": [
         {
             "preset": "cloud",
@@ -142,10 +143,13 @@ raw = json.loads(
     }
 }
 """
-)
 
+try:
+    config = Config.from_dict(json.loads(config_json))
+    backup = Backups(config)
+except (AssertionError, json.decoder.JSONDecodeError) as e:
+    print(f"ERROR: {e}", file=sys.stderr)
+    sys.exit(1)
 
-b = Backups(Config.from_dict(raw))
-
-for cmd in b.commands():
+for cmd in backup.commands():
     print(cmd)
