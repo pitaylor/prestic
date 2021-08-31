@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestCommand(t *testing.T) {
+func TestContext(t *testing.T) {
 	t.Run("CommandArgs", func(t *testing.T) {
-		config := Command{}
+		config := Context{}
 		err := yaml.UnmarshalStrict([]byte(`
 flags:
   f1: 1
@@ -30,7 +30,7 @@ args:
 	})
 
 	t.Run("CommandArgs Empty", func(t *testing.T) {
-		config := Command{}
+		config := Context{}
 		err := yaml.UnmarshalStrict([]byte(``), &config)
 
 		assert.NoError(t, err)
