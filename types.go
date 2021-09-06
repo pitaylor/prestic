@@ -47,6 +47,5 @@ type Program struct {
 	Config     Config
 	ConfigFile string
 	DryRun     bool
-	State      State
 	StateFile  string
 }

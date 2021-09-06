@@ -3,8 +3,6 @@ package main
 import "flag"
 
 func main() {
-	//snapshot c098c88e saved
-
 	p := Program{}
 
 	flag.StringVar(&p.ConfigFile, "config", "prestic.yml", "Config file")
@@ -13,6 +11,5 @@ func main() {
 	flag.Parse()
 
 	p.LoadConfig()
-	p.LoadState()
 	p.RunAll()
 }

@@ -1,5 +1,5 @@
 .idea
 .prestic.json
-restic.json
-restic.yml
+out
 prestic.yml
+restic

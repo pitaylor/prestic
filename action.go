@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (a *Action) Configure(config *Config) {
+func (a *Action) Configure(config *Config, snapshots SnapshotMap) {
 	var contexts []*Context
 
 	for _, preset := range strings.Split(a.Preset, ",") {
@@ -26,16 +26,20 @@ func (a *Action) Configure(config *Config) {
 	}
 
 	a.Context = *Merge(append(contexts, &a.Context))
+
+	if snapshotId := snapshots[a.SnapshotKey]; snapshotId != "" && a.SnapshotKey != "" {
+		a.Context.Flags["parent"] = snapshotId
+	}
 }
 
-func (a *Action) Run(resticFlags ...string) (result ActionResult, err error) {
+func (a *Action) Run() (result ActionResult, err error) {
 	deferErr := func(e error) {
 		if e != nil && err == nil {
 			err = e
 		}
 	}
 
-	resticCmd := a.ResticCmd(resticFlags...)
+	resticCmd := a.ResticCmd()
 
 	if stdinCmd := a.StdinCmd(); stdinCmd != nil {
 		resticCmd.Stdin, err = stdinCmd.StdoutPipe()
@@ -76,14 +80,12 @@ func (a *Action) snapshotScan(reader io.Reader) (snapshotId string, err error) {
 	return
 }
 
-func (a *Action) ResticCmd(flags ...string) *exec.Cmd {
+func (a *Action) ResticCmd() *exec.Cmd {
 	var args []string
 	args = append(args, a.Command)
-	args = append(args, flags...)
 	args = append(args, a.Context.CommandArgs()...)
 
-	// todo: fixme
-	cmd := exec.Command("./restic.sh", args...)
+	cmd := exec.Command("restic", args...)
 	cmd.Env = a.Context.CommandEnv()
 	cmd.Stderr = os.Stderr
 	return cmd

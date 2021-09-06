@@ -24,7 +24,7 @@ args:
 		assert.NoError(t, err)
 		assert.Equal(
 			t,
-			[]string{"-f5", "5", "--f1", "1", "--f2", "--f3", "true", "--f4", "false", "a1", "a2"},
+			[]string{"--f1", "1", "--f2", "--f3", "true", "--f4", "false", "-f5", "5", "a1", "a2"},
 			config.CommandArgs(),
 		)
 	})
