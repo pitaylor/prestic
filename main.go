@@ -21,5 +21,8 @@ func main() {
 	flag.Parse()
 
 	p.LoadConfig()
-	p.RunAll()
+
+	if errs := p.RunAll(); len(errs) != 0 {
+		os.Exit(1)
+	}
 }

@@ -2,10 +2,14 @@ package main
 
 type EnvMap map[string]string
 type FlagMap map[string]interface{}
+type CommandMap map[string]Command
 type SnapshotMap map[string]string
 
-// Context is an execution context for a restic command.
-type Context struct {
+// Command is a restic command and its arguments.
+type Command struct {
+	// Command is the restic command, one of "backup", "forget", "prune", etc.
+	Command string `yaml:""`
+
 	// Env specifies the environment for the command.
 	Env EnvMap `yaml:",omitempty"`
 
@@ -20,26 +24,29 @@ type Context struct {
 
 	// Stdin specifies a program that is piped to the command's standard input.
 	Stdin string `yaml:",omitempty"`
+
+	// AutoParent specifies whether parent flag should be set automatically to snapshot ID from the last run.
+	AutoParent bool `yaml:",omitempty"`
 }
 
-// Action is a restic command.
-type Action struct {
-	Command     string  `yaml:""`
-	Preset      string  `yaml:",omitempty"`
-	Context     Context `yaml:",inline"`
-	SnapshotKey string  `yaml:"snapshot-key,omitempty"`
-}
-
-type Config struct {
-	Presets map[string]*Context `yaml:",omitempty"`
-	Actions []*Action           `yaml:",omitempty"`
-}
-
-type ActionResult struct {
+// CommandResult is the result from running a restic command.
+type CommandResult struct {
+	// SnapshotId is the snapshot ID parsed from the command output.
 	SnapshotId string
 }
 
+// Config is the program configuration.
+type Config struct {
+	// Commands specifies the restic commands to run.
+	Commands CommandMap `yaml:",omitempty"`
+
+	// Presets are ignored and serves as a namespace that can be used to define reusable anchors in the YAML file.
+	Presets map[string]interface{} `yaml:",omitempty"`
+}
+
+// State is program state that is persisted across program runs.
 type State struct {
+	// Snapshots is a map of command name to snapshot ID.
 	Snapshots SnapshotMap `json:"snapshots,omitempty"`
 }
 

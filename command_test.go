@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestContext(t *testing.T) {
+func TestCommand(t *testing.T) {
 	t.Run("CommandArgs", func(t *testing.T) {
-		config := Context{}
+		command := Command{}
 		err := yaml.UnmarshalStrict([]byte(`
 flags:
   f1: 1
@@ -19,21 +19,21 @@ flags:
 args:
   - a1
   - a2
-`), &config)
+`), &command)
 
 		assert.NoError(t, err)
-		assert.Equal(
+		assert.ElementsMatch(
 			t,
 			[]string{"--f1", "1", "--f2", "--f3", "true", "--f4", "false", "-f5", "5", "a1", "a2"},
-			config.CommandArgs(),
+			command.CommandArgs(),
 		)
 	})
 
 	t.Run("CommandArgs Empty", func(t *testing.T) {
-		config := Context{}
-		err := yaml.UnmarshalStrict([]byte(``), &config)
+		command := Command{}
+		err := yaml.UnmarshalStrict([]byte(``), &command)
 
 		assert.NoError(t, err)
-		assert.Equal(t, []string(nil), config.CommandArgs())
+		assert.Equal(t, []string(nil), command.CommandArgs())
 	})
 }
