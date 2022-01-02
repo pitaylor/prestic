@@ -1,12 +1,22 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"os"
+	"path"
+)
 
 func main() {
 	p := Program{}
 
-	flag.StringVar(&p.ConfigFile, "config", "prestic.yml", "Config file")
-	flag.StringVar(&p.StateFile, "state", ".prestic.json", "State file")
+	presticDir := ".prestic"
+
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		presticDir = path.Join(homeDir, presticDir)
+	}
+
+	flag.StringVar(&p.ConfigFile, "config", path.Join(presticDir, "config.yml"), "Config file")
+	flag.StringVar(&p.StateFile, "state", path.Join(presticDir, "state.json"), "State file")
 	flag.BoolVar(&p.DryRun, "dry-run", false, "Perform a dry run")
 	flag.Parse()
 

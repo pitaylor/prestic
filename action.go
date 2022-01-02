@@ -32,34 +32,48 @@ func (a *Action) Configure(config *Config, snapshots SnapshotMap) {
 	}
 }
 
-func (a *Action) Run() (result ActionResult, err error) {
-	deferErr := func(e error) {
-		if e != nil && err == nil {
-			err = e
-		}
+func (a *Action) Run(dryRun bool) (result ActionResult, err error) {
+	resticCmd := a.ResticCmd()
+	stdinCmd := a.StdinCmd()
+
+	if stdinCmd != nil {
+		log.Printf("Stdin Command: %v, Env: %v", stdinCmd, stdinCmd.Env)
 	}
 
-	resticCmd := a.ResticCmd()
+	log.Printf("Restic Command: %v, Env: %v", resticCmd, resticCmd.Env)
 
-	if stdinCmd := a.StdinCmd(); stdinCmd != nil {
-		resticCmd.Stdin, err = stdinCmd.StdoutPipe()
-		if err == nil {
-			err = stdinCmd.Start()
-		}
-		if err == nil {
-			defer func() { deferErr(stdinCmd.Wait()) }()
-		} else {
+	if dryRun {
+		return
+	}
+
+	if stdinCmd != nil {
+		var output []byte
+
+		stdinCmd.Stderr = os.Stderr
+		output, err = stdinCmd.Output()
+
+		if err != nil {
 			return
 		}
+
+		resticCmd.Stdin = strings.NewReader(string(output))
 	}
 
 	reader, err := resticCmd.StdoutPipe()
+
 	if err == nil {
 		err = resticCmd.Start()
 	}
+
 	if err == nil {
-		defer func() { deferErr(resticCmd.Wait()) }()
-		result.SnapshotId, err = a.snapshotScan(reader)
+		teeReader := io.TeeReader(reader, os.Stdout)
+		result.SnapshotId, err = a.snapshotScan(teeReader)
+
+		if err != nil {
+			log.Printf("Scan error: %v", err)
+		}
+
+		err = resticCmd.Wait()
 	}
 
 	return
@@ -70,7 +84,6 @@ func (a *Action) snapshotScan(reader io.Reader) (snapshotId string, err error) {
 	scanner := bufio.NewScanner(reader)
 
 	for scanner.Scan() {
-		log.Println("RESTIC: " + scanner.Text())
 		if match := re.FindSubmatch(scanner.Bytes()); match != nil {
 			snapshotId = string(match[1])
 		}
