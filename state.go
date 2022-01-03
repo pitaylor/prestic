@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"os"
 )
 
@@ -11,14 +11,14 @@ func (p *Program) GetState() *State {
 	state := State{}
 
 	if _, err := os.Stat(p.StateFile); err != nil {
-		log.Printf("No state file found: %v", p.StateFile)
+		log.WithFields(logrus.Fields{"file": p.StateFile}).Warn("State file not found")
 	} else {
 		data, err := ioutil.ReadFile(p.StateFile)
 		if err == nil {
 			err = json.Unmarshal(data, &state)
 		}
 		if err != nil {
-			log.Fatal(err)
+			log.WithError(err).Fatal("Unable to read state file")
 		}
 	}
 
@@ -41,6 +41,6 @@ func (p *Program) UpdateState(updateFunc func(*State)) {
 	}
 
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatal("Unable to update state file")
 	}
 }

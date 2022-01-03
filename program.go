@@ -1,9 +1,10 @@
 package main
 
 import (
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"log"
+	"time"
 )
 
 func (p *Program) LoadConfig() {
@@ -14,9 +15,25 @@ func (p *Program) LoadConfig() {
 	}
 
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatal("Unable to load config file")
 	}
+}
 
+func (p *Program) ConfigureLogging() {
+	if p.DryRun {
+		log.Level = logrus.DebugLevel
+	} else {
+		level, err := logrus.ParseLevel(p.LogLevel)
+
+		if err != nil {
+			log.WithError(err).Fatal("Unable to parse log level")
+		}
+
+		log.Level = level
+	}
+}
+
+func (p *Program) ConfigureParentFlags() {
 	snapshots := p.GetState().Snapshots
 
 	for _, command := range p.Config.Commands {
@@ -33,18 +50,34 @@ func (p *Program) RunAll() (errs []error) {
 		}
 	}
 
+	log.WithFields(logrus.Fields{
+		"success": len(p.Config.Commands) - len(errs),
+		"failed":  len(errs),
+	}).Info("Command summary")
+
 	return
 }
 
 func (p *Program) Run(command Command) error {
+	contextLog := log.WithFields(logrus.Fields{"name": command.Name})
+	contextLog.Info("Command started")
+
+	start := time.Now()
 	result, err := command.Run(p.DryRun)
 
 	if err != nil {
-		log.Printf("Command failed: %v", err)
+		contextLog.WithError(err).Error("Command failed")
+	} else {
+		contextLog.WithFields(logrus.Fields{
+			"duration": time.Since(start).Nanoseconds(),
+		}).Info("Command finished")
 	}
 
 	if !p.DryRun && command.AutoParent && result.SnapshotId != "" {
 		p.UpdateState(func(state *State) {
+			contextLog.WithFields(logrus.Fields{
+				"snapshotId": result.SnapshotId,
+			}).Debug("Updating state")
 			state.Snapshots[command.Name] = result.SnapshotId
 		})
 	}
