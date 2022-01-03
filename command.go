@@ -96,16 +96,8 @@ func (c *Command) StdinCmd() *exec.Cmd {
 func (c *Command) CommandArgs() []string {
 	var cmd []string
 
-	for flag, val := range c.Flags {
-		if !strings.HasPrefix(flag, "-") {
-			flag = "--" + flag
-		}
-
-		if boolVal, ok := val.(bool); ok && boolVal {
-			cmd = append(cmd, flag)
-		} else {
-			cmd = append(cmd, flag, os.ExpandEnv(fmt.Sprintf("%v", val)))
-		}
+	for _, flag := range c.Flags {
+		cmd = append(cmd, flag.CommandArg()...)
 	}
 
 	for _, arg := range c.Args {
@@ -126,4 +118,18 @@ func (c *Command) CommandEnv() []string {
 	}
 
 	return env
+}
+
+func (f *Flag) CommandArg() []string {
+	flag := f.Name
+
+	if !strings.HasPrefix(flag, "-") {
+		flag = "--" + flag
+	}
+
+	if boolVal, ok := f.Value.(bool); ok && boolVal {
+		return []string{flag}
+	} else {
+		return []string{flag, os.ExpandEnv(fmt.Sprintf("%v", f.Value))}
+	}
 }
