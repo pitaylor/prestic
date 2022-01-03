@@ -34,7 +34,7 @@ type Command struct {
 
 // Flag is a restic command flag.
 type Flag struct {
-	Name string
+	Name  string
 	Value interface{}
 }
 
@@ -60,8 +60,9 @@ type State struct {
 }
 
 type Program struct {
-	Config     Config
-	ConfigFile string
-	DryRun     bool
-	StateFile  string
+	Config      Config
+	ConfigFile  string
+	DryRun      bool
+	StateFile   string
+	LogLevel    string
 }

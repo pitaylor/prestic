@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -16,10 +16,16 @@ func (c *Command) Run(dryRun bool) (result CommandResult, err error) {
 	stdinCmd := c.StdinCmd()
 
 	if stdinCmd != nil {
-		log.Printf("Stdin Command: %v, Env: %v", stdinCmd, stdinCmd.Env)
+		log.WithFields(logrus.Fields{
+			"command": stdinCmd,
+			"env": stdinCmd.Env,
+		}).Debug("Stdin command")
 	}
 
-	log.Printf("Restic Command: %v, Env: %v", resticCmd, resticCmd.Env)
+	log.WithFields(logrus.Fields{
+		"command": resticCmd,
+		"env": resticCmd.Env,
+	}).Debug("Restic command")
 
 	if dryRun {
 		return
@@ -45,11 +51,19 @@ func (c *Command) Run(dryRun bool) (result CommandResult, err error) {
 	}
 
 	if err == nil {
-		teeReader := io.TeeReader(reader, os.Stdout)
+		logWriter := log.WriterLevel(logrus.DebugLevel)
+
+		defer func(logWriter *io.PipeWriter) {
+			if err := logWriter.Close(); err != nil {
+				log.WithError(err).Error("Unable to close logger")
+			}
+		}(logWriter)
+
+		teeReader := io.TeeReader(reader, logWriter)
 		result.SnapshotId, err = c.snapshotScan(teeReader)
 
 		if err != nil {
-			log.Printf("Scan error: %v", err)
+			log.WithError(err).Error("Problem scanning output")
 		}
 
 		err = resticCmd.Wait()
