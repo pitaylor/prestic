@@ -2,11 +2,14 @@ package main
 
 type EnvMap map[string]string
 type FlagMap map[string]interface{}
-type CommandMap map[string]Command
+type CommandList []Command
 type SnapshotMap map[string]string
 
 // Command is a restic command and its arguments.
 type Command struct {
+	// Name is the unique command name specified in the configuration file.
+	Name string
+
 	// Command is the restic command, one of "backup", "forget", "prune", etc.
 	Command string `yaml:""`
 
@@ -38,9 +41,9 @@ type CommandResult struct {
 // Config is the program configuration.
 type Config struct {
 	// Commands specifies the restic commands to run.
-	Commands CommandMap `yaml:",omitempty"`
+	Commands CommandList `yaml:",omitempty"`
 
-	// Presets are ignored and serves as a namespace that can be used to define reusable anchors in the YAML file.
+	// Presets are ignored and serve as a namespace to define reusable anchors in the YAML file.
 	Presets map[string]interface{} `yaml:",omitempty"`
 }
 
