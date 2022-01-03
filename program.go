@@ -21,7 +21,7 @@ func (p *Program) LoadConfig() {
 
 	for _, command := range p.Config.Commands {
 		if snapshotId := snapshots[command.Name]; snapshotId != "" && command.AutoParent {
-			command.Flags["parent"] = snapshotId
+			command.Flags = append(command.Flags, Flag{Name: "parent", Value: snapshotId})
 		}
 	}
 }

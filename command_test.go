@@ -22,7 +22,7 @@ args:
 `), &command)
 
 		assert.NoError(t, err)
-		assert.ElementsMatch(
+		assert.Equal(
 			t,
 			[]string{"--f1", "1", "--f2", "--f3", "true", "--f4", "false", "-f5", "5", "a1", "a2"},
 			command.CommandArgs(),

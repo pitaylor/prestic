@@ -1,8 +1,8 @@
 package main
 
 type EnvMap map[string]string
-type FlagMap map[string]interface{}
 type CommandList []Command
+type FlagList []Flag
 type SnapshotMap map[string]string
 
 // Command is a restic command and its arguments.
@@ -20,7 +20,7 @@ type Command struct {
 	// flag value. If the flag is not prefixed with a hyphen, a double hyphen is
 	// assumed. The flag value is converted to its string representation except for the
 	// boolean value true, which is not emitted.
-	Flags FlagMap `yaml:",omitempty"`
+	Flags FlagList `yaml:",omitempty"`
 
 	// Args specifies the positional command line arguments.
 	Args []string `yaml:",omitempty"`
@@ -30,6 +30,12 @@ type Command struct {
 
 	// AutoParent specifies whether parent flag should be set automatically to snapshot ID from the last run.
 	AutoParent bool `yaml:",omitempty"`
+}
+
+// Flag is a restic command flag.
+type Flag struct {
+	Name string
+	Value interface{}
 }
 
 // CommandResult is the result from running a restic command.
