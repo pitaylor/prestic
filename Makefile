@@ -1,4 +1,4 @@
-.PHONY: build clean install-remote start test
+.PHONY: build test clean
 
 PROGRAM = prestic
 
