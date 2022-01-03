@@ -19,16 +19,16 @@ func (p *Program) LoadConfig() {
 
 	snapshots := p.GetState().Snapshots
 
-	for name, command := range p.Config.Commands {
-		if snapshotId := snapshots[name]; snapshotId != "" && command.AutoParent {
+	for _, command := range p.Config.Commands {
+		if snapshotId := snapshots[command.Name]; snapshotId != "" && command.AutoParent {
 			command.Flags["parent"] = snapshotId
 		}
 	}
 }
 
 func (p *Program) RunAll() (errs []error) {
-	for name := range p.Config.Commands {
-		if err := p.Run(name); err != nil {
+	for _, command := range p.Config.Commands {
+		if err := p.Run(command); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -36,8 +36,7 @@ func (p *Program) RunAll() (errs []error) {
 	return
 }
 
-func (p *Program) Run(name string) error {
-	command := p.Config.Commands[name]
+func (p *Program) Run(command Command) error {
 	result, err := command.Run(p.DryRun)
 
 	if err != nil {
@@ -46,7 +45,7 @@ func (p *Program) Run(name string) error {
 
 	if !p.DryRun && command.AutoParent && result.SnapshotId != "" {
 		p.UpdateState(func(state *State) {
-			state.Snapshots[name] = result.SnapshotId
+			state.Snapshots[command.Name] = result.SnapshotId
 		})
 	}
 
