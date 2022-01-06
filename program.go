@@ -36,9 +36,9 @@ func (p *Program) ConfigureLogging() {
 func (p *Program) ConfigureParentFlags() {
 	snapshots := p.GetState().Snapshots
 
-	for _, command := range p.Config.Commands {
+	for i, command := range p.Config.Commands {
 		if snapshotId := snapshots[command.Name]; snapshotId != "" && command.AutoParent {
-			command.Flags = append(command.Flags, Flag{Name: "parent", Value: snapshotId})
+			p.Config.Commands[i].Flags = append(command.Flags, Flag{Name: "parent", Value: snapshotId})
 		}
 	}
 }

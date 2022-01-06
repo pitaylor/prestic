@@ -1,4 +1,5 @@
 .idea
 .prestic.json
 out
+tmp
 prestic.yml

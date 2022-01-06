@@ -1,0 +1,5 @@
+commands:
+  command_failure:
+    command: forget
+    args:
+      - "--fail"
