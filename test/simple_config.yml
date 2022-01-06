@@ -1,0 +1,23 @@
+presets:
+  env: &env
+    RESTIC_VAR1: rv1
+    RESTIC_VAR2: rv2
+
+commands:
+  basic:
+    command: backup
+    env: *env
+    flags:
+      f1: v1
+      f2: true
+    args:
+      - a1
+      - a2
+
+  stdin:
+    command: backup
+    stdin: printf "Hello World"
+    env: *env
+    flags:
+      f1: v1
+      stdin: true

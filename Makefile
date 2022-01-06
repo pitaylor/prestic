@@ -14,4 +14,4 @@ test:
 	go test -v ./...
 
 clean:
-	rm -rf out
+	rm -rf out tmp

@@ -1,0 +1,6 @@
+commands:
+  stdin_failure:
+    command: backup
+    stdin: exit 1
+    args:
+      - "--stdin"
