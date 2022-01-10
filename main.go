@@ -6,7 +6,6 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/sirupsen/logrus"
 	"os"
-	"path"
 	"strings"
 )
 
@@ -68,20 +67,44 @@ type CLI struct {
 	List ListCmd `cmd:"" help:"List restic commands."`
 }
 
-func main() {
-	presticDir := ".prestic"
+// ConfigPaths determines default config and state file paths based on searching for a config file in user
+// directories first, then system directories. It loosely follows XDG conventions.
+func ConfigPaths() []string {
+	var candidates [][]string
+
 	if homeDir, err := os.UserHomeDir(); err == nil {
-		presticDir = path.Join(homeDir, presticDir)
+		candidates = append(
+			candidates,
+			[]string{homeDir + "/.prestic/config.yml", homeDir + "/.local/share/prestic/state.json"},
+			[]string{homeDir + "/.config/prestic/config.yml", homeDir + "/.local/share/prestic/config.yml"},
+		)
 	}
 
+	candidates = append(
+		candidates,
+		[]string{"/etc/prestic/config.yml", "/var/prestic/state.json"},
+		[]string{"/usr/local/etc/prestic/config.yml", "/usr/local/var/prestic/state.json"},
+	)
+
+	for i := range candidates {
+		if src, err := os.Stat(candidates[i][0]); err == nil && src.Mode().IsRegular() {
+			return candidates[i]
+		}
+	}
+
+	return candidates[0]
+}
+
+func main() {
 	var cli CLI
+
+	defaultPaths := ConfigPaths()
 
 	ctx := kong.Parse(&cli,
 		kong.Vars{
-			"configFile": path.Join(presticDir, "config.yml"),
-			"stateFile":  path.Join(presticDir, "state.json"),
+			"configFile": defaultPaths[0],
+			"stateFile":  defaultPaths[1],
 		})
-
 
 	p, err := NewProgram(&cli)
 
