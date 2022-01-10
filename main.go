@@ -56,7 +56,7 @@ func (l *ListCmd) Run(p *Program) error {
 	return nil
 }
 
-var cli struct {
+type CLI struct {
 	DryRun     bool   `help:"Enable dry-run mode."`
 	ConfigFile string `help:"Configuration file." short:"c" type:"path" default:"${configFile}"`
 	StateFile  string `help:"State file." short:"s" type:"path" default:"${stateFile}"`
@@ -74,15 +74,19 @@ func main() {
 		presticDir = path.Join(homeDir, presticDir)
 	}
 
+	var cli CLI
+
 	ctx := kong.Parse(&cli,
 		kong.Vars{
 			"configFile": path.Join(presticDir, "config.yml"),
 			"stateFile":  path.Join(presticDir, "state.json"),
 		})
 
-	p := Program{DryRun: cli.DryRun, StateFile: cli.StateFile}
-	p.Init(cli.Log.Level, cli.ConfigFile)
+	p, err := NewProgram(&cli)
 
-	err := ctx.Run(&p)
+	if err == nil {
+		err = ctx.Run(&p)
+	}
+
 	ctx.FatalIfErrorf(err)
 }

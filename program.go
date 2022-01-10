@@ -7,36 +7,44 @@ import (
 	"time"
 )
 
-func (p *Program) Init(logLevel string, configFile string) {
-	p.LoadConfig(configFile)
-	p.ConfigureLogging(logLevel)
-	p.ConfigureParentFlags()
+func NewProgram(cli *CLI) (*Program, error) {
+	p := Program{StateFile: cli.StateFile}
+
+	err := p.LoadConfig(cli.ConfigFile)
+
+	if err == nil {
+		err = p.ConfigureLogging(cli.Log.Level)
+	}
+
+	if err == nil {
+		p.ConfigureParentFlags()
+	}
+
+	return &p, err
 }
 
-func (p *Program) LoadConfig(configFile string) {
+func (p *Program) LoadConfig(configFile string) error {
 	data, err := ioutil.ReadFile(configFile)
 
 	if err == nil {
 		err = yaml.UnmarshalStrict(data, &p.Config)
 	}
 
-	if err != nil {
-		log.WithError(err).Fatal("Unable to load config file")
-	}
+	return err
 }
 
-func (p *Program) ConfigureLogging(logLevel string) {
+func (p *Program) ConfigureLogging(logLevel string) error {
+	var err error
 	if p.DryRun {
 		log.Level = logrus.DebugLevel
 	} else {
-		level, err := logrus.ParseLevel(logLevel)
-
-		if err != nil {
-			log.WithError(err).Fatal("Unable to parse log level")
+		var level logrus.Level
+		if level, err = logrus.ParseLevel(logLevel); err == nil {
+			log.Level = level
 		}
-
-		log.Level = level
 	}
+
+	return err
 }
 
 func (p *Program) ConfigureParentFlags() {

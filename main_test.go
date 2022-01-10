@@ -37,10 +37,19 @@ func withProgram(configFile string, test func(*Program)) {
 	// clear restic command log
 	_ = os.Remove("tmp/commands.log")
 
-	p := Program{StateFile: "tmp/state.json"}
-	p.Init("debug", configFile)
+	cli := CLI{
+		ConfigFile: configFile,
+		StateFile: "tmp/state.json",
+	}
+	cli.Log.Level = "debug"
 
-	test(&p)
+	p, err := NewProgram(&cli)
+
+	if err != nil {
+		panic(err)
+	}
+
+	test(p)
 }
 
 func resticCommands() []string {

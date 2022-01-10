@@ -17,6 +17,7 @@ func (c *Config) GetCommand(name string) (*Command, error) {
 	return nil, errors.New(fmt.Sprintf("command not found: %v", name))
 }
 
+// UnmarshalYAML unmarshalls a config ignoring keys with "x-" prefix that can be used for yaml anchors.
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var config struct {
 		Commands CommandList            `yaml:",omitempty"`
@@ -29,7 +30,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	for key := range config.Rest {
 		if !strings.HasPrefix(key, "x-") {
-			return errors.New("unknown config property: " + key)
+			return errors.New(fmt.Sprintf("unknown config property \"%v\"", key))
 		}
 	}
 
