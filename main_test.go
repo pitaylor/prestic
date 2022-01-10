@@ -9,49 +9,104 @@ import (
 	"testing"
 )
 
-func TestWrappedMain(t *testing.T) {
-	log.Out = ioutil.Discard
+// set to false for debugging
+const suppressLog = true
 
+// withProgram performs test setup and cleanup including: suppresses log output, updates PATH environment
+// variable to preempt system restic with mock one, clears mock log, creates Program struct.
+func withProgram(configFile string, test func(*Program)) {
+	savedOut := log.Out
 	savedPath := os.Getenv("PATH")
 
-	defer func() { assert.NoError(t, os.Setenv("PATH", savedPath)) }()
+	defer func() {
+		log.Out = savedOut
+		_ = os.Setenv("PATH", savedPath)
+	}()
 
+	// suppress logs
+	if suppressLog {
+		log.Out = ioutil.Discard
+	}
+
+	// preempt path with mock scripts
 	scriptsPath, err := filepath.Abs("scripts")
-
 	if err == nil {
 		err = os.Setenv("PATH", scriptsPath+string(os.PathListSeparator)+savedPath)
 	}
 
-	assert.NoError(t, err)
+	// clear restic command log
+	_ = os.Remove("tmp/commands.log")
 
-	clearCommands := func() {
-		_ = os.Remove("tmp/commands.log")
+	cli := CLI{
+		ConfigFile: configFile,
+		StateFile: "tmp/state.json",
+	}
+	cli.Log.Level = "debug"
+
+	p, err := NewProgram(&cli)
+
+	if err != nil {
+		panic(err)
 	}
 
-	readCommands := func() []string {
-		data, err := ioutil.ReadFile("tmp/commands.log")
-		assert.NoError(t, err)
+	test(p)
+}
 
+func resticCommands() []string {
+	data, err := ioutil.ReadFile("tmp/commands.log")
+
+	if err != nil {
+		return []string{}
+	} else {
 		return strings.Split(strings.TrimSpace(string(data)), "\n")
 	}
+}
 
-	t.Run("Runs commands", func(t *testing.T) {
-		clearCommands()
+func TestRun(t *testing.T) {
+	t.Run("Runs all commands", func(t *testing.T) {
+		withProgram("test/simple_config.yml", func(p *Program) {
+			cmd := RunCmd{}
+			err := cmd.Run(p)
 
-		err := wrappedMain("-config", "test/simple_config.yml")
-		assert.NoError(t, err)
-		assert.Equal(t,
-			[]string{
-				"RESTIC_VAR1=rv1 RESTIC_VAR2=rv2 restic backup --f1 v1 --f2 a1 a2",
-				"RESTIC_VAR1=rv1 RESTIC_VAR2=rv2 STDIN=Hello\\ World restic backup --f1 v1 --stdin",
-			},
-			readCommands(),
-		)
+			assert.NoError(t, err)
+			assert.Equal(t,
+				[]string{
+					"RESTIC_VAR1=rv1 RESTIC_VAR2=rv2 restic backup --f1 v1 --f2 a1 a2",
+					"RESTIC_VAR1=rv1 RESTIC_VAR2=rv2 STDIN=Hello\\ World restic backup --f1 v1 --stdin",
+				},
+				resticCommands(),
+			)
+		})
+	})
+
+	t.Run("Runs specified command", func(t *testing.T) {
+		withProgram("test/simple_config.yml", func(p *Program) {
+			cmd := RunCmd{Commands: []string{"basic"}}
+			err := cmd.Run(p)
+
+			assert.NoError(t, err)
+			assert.Equal(t,
+				[]string{
+					"RESTIC_VAR1=rv1 RESTIC_VAR2=rv2 restic backup --f1 v1 --f2 a1 a2",
+				},
+				resticCommands(),
+			)
+		})
+	})
+
+	t.Run("Does not run commands if dry run", func(t *testing.T) {
+		withProgram("test/simple_config.yml", func(p *Program) {
+			p.DryRun = true
+			cmd := RunCmd{Commands: []string{"basic"}}
+			err := cmd.Run(p)
+
+			assert.NoError(t, err)
+			assert.Empty(t, resticCommands())
+		})
+
 	})
 
 	t.Run("Uses state file for commands with autoparent", func(t *testing.T) {
-		clearCommands()
-
 		err := ioutil.WriteFile(
 			"tmp/state.json",
 			[]byte("{\"snapshots\": {\"with_parent\": \"abc123\"}}"),
@@ -59,40 +114,50 @@ func TestWrappedMain(t *testing.T) {
 		)
 		assert.NoError(t, err)
 
-		err = wrappedMain("-config", "test/autoparent_config.yml", "-state", "tmp/state.json")
-		assert.NoError(t, err)
+		withProgram("test/autoparent_config.yml", func(p *Program) {
+			cmd := RunCmd{}
+			err = cmd.Run(p)
 
-		assert.Equal(t,
-			[]string{
-				"restic backup --parent abc123 with_parent",
-				"restic backup no_parent",
-			},
-			readCommands(),
-		)
+			assert.NoError(t, err)
+			assert.Equal(t,
+				[]string{
+					"restic backup --parent abc123 with_parent",
+					"restic backup no_parent",
+				},
+				resticCommands(),
+			)
+		})
 
-		clearCommands()
+		// ensure parent flags reflect snapshot IDs from previous run
+		withProgram("test/autoparent_config.yml", func(p *Program) {
+			cmd := RunCmd{}
+			err = cmd.Run(p)
 
-		err = wrappedMain("-config", "test/autoparent_config.yml", "-state", "tmp/state.json")
-		assert.NoError(t, err)
-
-		assert.Equal(t,
-			[]string{
-				"restic backup --parent bedabb1e with_parent",
-				"restic backup --parent bedabb1e no_parent",
-			},
-			readCommands(),
-		)
+			assert.NoError(t, err)
+			assert.Equal(t,
+				[]string{
+					"restic backup --parent bedabb1e with_parent",
+					"restic backup --parent bedabb1e no_parent",
+				},
+				resticCommands(),
+			)
+		})
 	})
 
-	t.Run("Command failures cause program error", func(t *testing.T) {
-		clearCommands()
+	t.Run("Command failure returns error", func(t *testing.T) {
+		withProgram("test/failure1_config.yml", func(p *Program) {
+			cmd := RunCmd{}
+			err := cmd.Run(p)
 
-		err = wrappedMain("-config", "test/failure1_config.yml", "-log-level", "debug")
-		assert.Error(t, err, "prestic: one or more commands failed")
+			assert.EqualError(t, err, "one or more commands failed: command_failure")
+			assert.Equal(t, []string{"restic forget --fail"}, resticCommands())
+		})
 
-		err = wrappedMain("-config", "test/failure2_config.yml", "-log-level", "debug")
-		assert.Error(t, err, "prestic: one or more commands failed")
+		withProgram("test/failure2_config.yml", func(p *Program) {
+			cmd := RunCmd{}
+			err := cmd.Run(p)
 
-		assert.Equal(t, []string{"restic forget --fail"}, readCommands())
+			assert.EqualError(t, err, "one or more commands failed: stdin_failure")
+		})
 	})
 }

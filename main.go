@@ -2,50 +2,92 @@ package main
 
 import (
 	"errors"
-	"flag"
+	"fmt"
+	"github.com/alecthomas/kong"
 	"github.com/sirupsen/logrus"
 	"os"
 	"path"
+	"strings"
 )
 
 var log = logrus.New()
 
-func main() {
-	err := wrappedMain(os.Args[1:]...)
-	if err == flag.ErrHelp {
-		os.Exit(0)
-	} else if err != nil {
-		os.Exit(1)
-	}
+type RunCmd struct {
+	Commands []string `arg:"" name:"command" optional:"" help:"Restic commands to run. Runs all if unspecified."`
 }
 
-func wrappedMain(args ...string) error {
-	p := Program{}
+func (r *RunCmd) Run(p *Program) error {
+	// Run all commands by default
+	commandList := p.Config.Commands
 
+	if len(r.Commands) != 0 {
+		commandList = CommandList{}
+		for _, name := range r.Commands {
+			if command, err := p.Config.GetCommand(name); err == nil {
+				commandList = append(commandList, *command)
+			} else {
+				return err
+			}
+		}
+	}
+
+	var failed []string
+	for _, command := range commandList {
+		if p.Run(command) != nil {
+			failed = append(failed, command.Name)
+		}
+	}
+
+	if len(failed) != 0 {
+		return errors.New(fmt.Sprintf("one or more commands failed: %v", strings.Join(failed, ", ")))
+	}
+
+	return nil
+}
+
+type ListCmd struct {
+}
+
+func (l *ListCmd) Run(p *Program) error {
+	fmt.Println("Restic commands:")
+	for _, cmd := range p.Config.Commands {
+		fmt.Printf("  %-15s\t%v %v\n", cmd.Name, cmd.Command, strings.Join(cmd.Args, " "))
+	}
+	return nil
+}
+
+type CLI struct {
+	DryRun     bool   `help:"Enable dry-run mode."`
+	ConfigFile string `help:"Configuration file." short:"c" type:"path" default:"${configFile}"`
+	StateFile  string `help:"State file." short:"s" type:"path" default:"${stateFile}"`
+	Log        struct {
+		Level string `help:"Log level: ${enum}." enum:"debug,info,warn,error" default:"info"`
+	} `embed:"" prefix:"log-"`
+
+	Run  RunCmd  `cmd:"" help:"Run restic commands."`
+	List ListCmd `cmd:"" help:"List restic commands."`
+}
+
+func main() {
 	presticDir := ".prestic"
-
 	if homeDir, err := os.UserHomeDir(); err == nil {
 		presticDir = path.Join(homeDir, presticDir)
 	}
 
-	cli := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	cli.StringVar(&p.ConfigFile, "config", path.Join(presticDir, "config.yml"), "Config file")
-	cli.StringVar(&p.StateFile, "state", path.Join(presticDir, "state.json"), "State file")
-	cli.StringVar(&p.LogLevel, "log-level", "info", "Log level: debug, error, warn, info (default info)")
-	cli.BoolVar(&p.DryRun, "dry-run", false, "Perform a dry run")
-	err := cli.Parse(args)
+	var cli CLI
 
-	if err != nil {
-		return err
+	ctx := kong.Parse(&cli,
+		kong.Vars{
+			"configFile": path.Join(presticDir, "config.yml"),
+			"stateFile":  path.Join(presticDir, "state.json"),
+		})
+
+
+	p, err := NewProgram(&cli)
+
+	if err == nil {
+		err = ctx.Run(p)
 	}
 
-	p.LoadConfig()
-	p.ConfigureLogging()
-	p.ConfigureParentFlags()
-
-	if errs := p.RunAll(); len(errs) != 0 {
-		return errors.New("prestic: one or more commands failed")
-	}
-
-	return nil
+	ctx.FatalIfErrorf(err)
 }

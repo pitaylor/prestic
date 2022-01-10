@@ -7,30 +7,44 @@ import (
 	"time"
 )
 
-func (p *Program) LoadConfig() {
-	data, err := ioutil.ReadFile(p.ConfigFile)
+func NewProgram(cli *CLI) (*Program, error) {
+	p := Program{StateFile: cli.StateFile}
+
+	err := p.LoadConfig(cli.ConfigFile)
+
+	if err == nil {
+		err = p.ConfigureLogging(cli.Log.Level)
+	}
+
+	if err == nil {
+		p.ConfigureParentFlags()
+	}
+
+	return &p, err
+}
+
+func (p *Program) LoadConfig(configFile string) error {
+	data, err := ioutil.ReadFile(configFile)
 
 	if err == nil {
 		err = yaml.UnmarshalStrict(data, &p.Config)
 	}
 
-	if err != nil {
-		log.WithError(err).Fatal("Unable to load config file")
-	}
+	return err
 }
 
-func (p *Program) ConfigureLogging() {
+func (p *Program) ConfigureLogging(logLevel string) error {
+	var err error
 	if p.DryRun {
 		log.Level = logrus.DebugLevel
 	} else {
-		level, err := logrus.ParseLevel(p.LogLevel)
-
-		if err != nil {
-			log.WithError(err).Fatal("Unable to parse log level")
+		var level logrus.Level
+		if level, err = logrus.ParseLevel(logLevel); err == nil {
+			log.Level = level
 		}
-
-		log.Level = level
 	}
+
+	return err
 }
 
 func (p *Program) ConfigureParentFlags() {
@@ -41,21 +55,6 @@ func (p *Program) ConfigureParentFlags() {
 			p.Config.Commands[i].Flags = append(command.Flags, Flag{Name: "parent", Value: snapshotId})
 		}
 	}
-}
-
-func (p *Program) RunAll() (errs []error) {
-	for _, command := range p.Config.Commands {
-		if err := p.Run(command); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	log.WithFields(logrus.Fields{
-		"success": len(p.Config.Commands) - len(errs),
-		"failed":  len(errs),
-	}).Info("Command summary")
-
-	return
 }
 
 func (p *Program) Run(command Command) error {

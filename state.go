@@ -11,7 +11,7 @@ func (p *Program) GetState() *State {
 	state := State{}
 
 	if _, err := os.Stat(p.StateFile); err != nil {
-		log.WithFields(logrus.Fields{"file": p.StateFile}).Warn("State file not found")
+		log.WithFields(logrus.Fields{"file": p.StateFile}).Debug("State file not found")
 	} else {
 		data, err := ioutil.ReadFile(p.StateFile)
 		if err == nil {
