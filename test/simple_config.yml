@@ -1,4 +1,4 @@
-presets:
+x-presets:
   env: &env
     RESTIC_VAR1: rv1
     RESTIC_VAR2: rv2

@@ -48,9 +48,6 @@ type CommandResult struct {
 type Config struct {
 	// Commands specifies the restic commands to run.
 	Commands CommandList `yaml:",omitempty"`
-
-	// Presets are ignored and serve as a namespace to define reusable anchors in the YAML file.
-	Presets map[string]interface{} `yaml:",omitempty"`
 }
 
 // State is program state that is persisted across program runs.
@@ -61,8 +58,6 @@ type State struct {
 
 type Program struct {
 	Config      Config
-	ConfigFile  string
 	DryRun      bool
 	StateFile   string
-	LogLevel    string
 }

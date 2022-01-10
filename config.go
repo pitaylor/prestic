@@ -1,9 +1,42 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"gopkg.in/yaml.v2"
+	"strings"
 )
+
+// GetCommand gets a Command by name.
+func (c *Config) GetCommand(name string) (*Command, error) {
+	for _, cmd := range c.Commands {
+		if cmd.Name == name {
+			return &cmd, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("command not found: %v", name))
+}
+
+func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var config struct {
+		Commands CommandList            `yaml:",omitempty"`
+		Rest     map[string]interface{} `yaml:",inline"`
+	}
+
+	if err := unmarshal(&config); err != nil {
+		return err
+	}
+
+	for key := range config.Rest {
+		if !strings.HasPrefix(key, "x-") {
+			return errors.New("unknown config property: " + key)
+		}
+	}
+
+	c.Commands = config.Commands
+
+	return nil
+}
 
 // UnmarshalYAML unmarshalls a map of Flags as an array, preserving the ordering specified by the YAML.
 func (l *FlagList) UnmarshalYAML(unmarshal func(interface{}) error) error {

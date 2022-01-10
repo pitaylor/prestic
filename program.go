@@ -7,8 +7,14 @@ import (
 	"time"
 )
 
-func (p *Program) LoadConfig() {
-	data, err := ioutil.ReadFile(p.ConfigFile)
+func (p *Program) Init(logLevel string, configFile string) {
+	p.LoadConfig(configFile)
+	p.ConfigureLogging(logLevel)
+	p.ConfigureParentFlags()
+}
+
+func (p *Program) LoadConfig(configFile string) {
+	data, err := ioutil.ReadFile(configFile)
 
 	if err == nil {
 		err = yaml.UnmarshalStrict(data, &p.Config)
@@ -19,11 +25,11 @@ func (p *Program) LoadConfig() {
 	}
 }
 
-func (p *Program) ConfigureLogging() {
+func (p *Program) ConfigureLogging(logLevel string) {
 	if p.DryRun {
 		log.Level = logrus.DebugLevel
 	} else {
-		level, err := logrus.ParseLevel(p.LogLevel)
+		level, err := logrus.ParseLevel(logLevel)
 
 		if err != nil {
 			log.WithError(err).Fatal("Unable to parse log level")
@@ -41,21 +47,6 @@ func (p *Program) ConfigureParentFlags() {
 			p.Config.Commands[i].Flags = append(command.Flags, Flag{Name: "parent", Value: snapshotId})
 		}
 	}
-}
-
-func (p *Program) RunAll() (errs []error) {
-	for _, command := range p.Config.Commands {
-		if err := p.Run(command); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	log.WithFields(logrus.Fields{
-		"success": len(p.Config.Commands) - len(errs),
-		"failed":  len(errs),
-	}).Info("Command summary")
-
-	return
 }
 
 func (p *Program) Run(command Command) error {
