@@ -82,10 +82,11 @@ func main() {
 			"stateFile":  path.Join(presticDir, "state.json"),
 		})
 
+
 	p, err := NewProgram(&cli)
 
 	if err == nil {
-		err = ctx.Run(&p)
+		err = ctx.Run(p)
 	}
 
 	ctx.FatalIfErrorf(err)
