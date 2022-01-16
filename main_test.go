@@ -106,7 +106,7 @@ func TestRun(t *testing.T) {
 
 	})
 
-	t.Run("Uses state file for commands with autoparent", func(t *testing.T) {
+	t.Run("Uses state file for commands with parent enabled", func(t *testing.T) {
 		err := ioutil.WriteFile(
 			"tmp/state.json",
 			[]byte("{\"snapshots\": {\"with_parent\": \"abc123\"}}"),
@@ -114,7 +114,7 @@ func TestRun(t *testing.T) {
 		)
 		assert.NoError(t, err)
 
-		withProgram("test/autoparent_config.yml", func(p *Program) {
+		withProgram("test/parent_config.yml", func(p *Program) {
 			cmd := RunCmd{}
 			err = cmd.Run(p)
 
@@ -129,7 +129,7 @@ func TestRun(t *testing.T) {
 		})
 
 		// ensure parent flags reflect snapshot IDs from previous run
-		withProgram("test/autoparent_config.yml", func(p *Program) {
+		withProgram("test/parent_config.yml", func(p *Program) {
 			cmd := RunCmd{}
 			err = cmd.Run(p)
 

@@ -51,7 +51,7 @@ func (p *Program) ConfigureParentFlags() {
 	snapshots := p.GetState().Snapshots
 
 	for i, command := range p.Config.Commands {
-		if snapshotId := snapshots[command.Name]; snapshotId != "" && command.AutoParent {
+		if snapshotId := snapshots[command.Name]; snapshotId != "" && command.Parent {
 			p.Config.Commands[i].Flags = append(command.Flags, Flag{Name: "parent", Value: snapshotId})
 		}
 	}
@@ -70,7 +70,7 @@ func (p *Program) Run(command Command) error {
 		contextLog.WithField("duration", time.Since(start).Milliseconds()).Info("Command finished")
 	}
 
-	if !p.DryRun && command.AutoParent && result.SnapshotId != "" {
+	if !p.DryRun && command.Parent && result.SnapshotId != "" {
 		p.UpdateState(func(state *State) {
 			contextLog.WithField("snapshotId", result.SnapshotId).Debug("Updating state")
 			state.Snapshots[command.Name] = result.SnapshotId
