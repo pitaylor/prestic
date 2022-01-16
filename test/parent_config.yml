@@ -1,12 +1,12 @@
 commands:
   with_parent:
     command: backup
-    autoparent: true
+    parent: true
     args:
       - with_parent
 
   no_parent:
     command: backup
-    autoparent: true
+    parent: true
     args:
       - no_parent

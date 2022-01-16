@@ -28,8 +28,8 @@ type Command struct {
 	// Stdin specifies a program that is piped to the command's standard input.
 	Stdin string `yaml:",omitempty"`
 
-	// AutoParent specifies whether parent flag should be set automatically to snapshot ID from the last run.
-	AutoParent bool `yaml:",omitempty"`
+	// Parent specifies whether parent flag should be set automatically to snapshot ID from the last run.
+	Parent bool `yaml:",omitempty"`
 }
 
 // Flag is a restic command flag.
