@@ -67,16 +67,12 @@ func (p *Program) Run(command Command) error {
 	if err != nil {
 		contextLog.WithError(err).Error("Command failed")
 	} else {
-		contextLog.WithFields(logrus.Fields{
-			"duration": time.Since(start).Nanoseconds(),
-		}).Info("Command finished")
+		contextLog.WithField("duration", time.Since(start).Milliseconds()).Info("Command finished")
 	}
 
 	if !p.DryRun && command.AutoParent && result.SnapshotId != "" {
 		p.UpdateState(func(state *State) {
-			contextLog.WithFields(logrus.Fields{
-				"snapshotId": result.SnapshotId,
-			}).Debug("Updating state")
+			contextLog.WithField("snapshotId", result.SnapshotId).Debug("Updating state")
 			state.Snapshots[command.Name] = result.SnapshotId
 		})
 	}
